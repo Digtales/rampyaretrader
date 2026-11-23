@@ -293,6 +293,24 @@ fun App(vm: VM = viewModel()) {
                 }
                 item {
                     SuggestionChip(
+                        onClick = { vm.handle("cement birla gold 200 bag") },
+                        label = { Text("birla gold 200 bag", fontSize = 12.sp) }
+                    )
+                }
+                item {
+                    SuggestionChip(
+                        onClick = { vm.handle("cement birla plus 200 bag") },
+                        label = { Text("birla plus 200 bag", fontSize = 12.sp) }
+                    )
+                }
+                item {
+                    SuggestionChip(
+                        onClick = { vm.handle("kamdhenu 200 kg") },
+                        label = { Text("kamdhenu sariya 200kg", fontSize = 12.sp) }
+                    )
+                }
+                item {
+                    SuggestionChip(
                         onClick = { vm.handle("churi 2kg") },
                         label = { Text("churi 2kg", fontSize = 12.sp) }
                     )

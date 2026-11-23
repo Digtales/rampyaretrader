@@ -54,12 +54,15 @@ class VM(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
+            // Delete old "Cement Kamdhenu" if present in database (Kamdhenu is Sariya/steel)
+            dao.delItem("Cement Kamdhenu")
+
             listOf(
-                Item("Cement UltraTech", "bag", 100.0, 340.0, "ultratech,अल्ट्राटेक,ultra tech,cement,सीमेंट,seement", 380.0),
+                Item("Cement UltraTech", "bag", 100.0, 340.0, "ultratech,अल्ट्राटेक,ultra tech", 380.0),
                 Item("Cement Ambuja", "bag", 80.0, 330.0, "ambuja,अंबुजा", 370.0),
-                Item("Cement ACC", "bag", 60.0, 335.0, "acc,एसीसी,a c c", 375.0),
-                Item("Cement Birla Plus", "bag", 50.0, 330.0, "birla,बिरला,birla plus,mp birla,बिरला प्लस", 365.0),
-                Item("Cement Kamdhenu", "bag", 50.0, 325.0, "kamdhenu,कामधेनु,kamdhenu cement", 360.0),
+                Item("Cement ACC", "bag", 60.0, 335.0, "acc,एसीसी,ऐसीसी,a c c,a.c.c,एसिसी,acc cement", 375.0),
+                Item("Cement Birla Gold", "bag", 60.0, 325.0, "birla gold,बिरला गोल्ड,गोल्ड,gold,mp birla gold,birla cement gold", 365.0),
+                Item("Cement Birla Plus", "bag", 60.0, 330.0, "birla plus,बिरला प्लस,प्लस,plus,mp birla plus,birla cement plus", 370.0),
                 Item("Cement Bangur", "bag", 40.0, 320.0, "bangur,बांगुर", 355.0),
                 Item("Cement JK Super", "bag", 40.0, 330.0, "jk,jk super,जेके,जे के,jk cement", 370.0),
                 Item("Cement Shree", "bag", 40.0, 325.0, "shree,श्री,shree cement,jung rodhak", 365.0),
@@ -67,9 +70,17 @@ class VM(app: Application) : AndroidViewModel(app) {
                 Item("Gitti 20mm", "tractor", 6.0, 6500.0, "gitti,गिट्टी,stone,रोड़ी,gitti 20mm", 7500.0),
                 Item("Gitti 10mm", "tractor", 4.0, 6000.0, "gitti 10mm,10mm,गिट्टी 10mm,बारीक गिट्टी", 7000.0),
                 Item("Churi (Stone Dust)", "kg", 5000.0, 3.0, "churi,चूरी,चुरी,चूड़ी,choori,stone dust,dust,डस्ट", 4.0),
+                Item("Kamdhenu Sariya (TMT)", "kg", 1000.0, 64.0, "kamdhenu,कामधेनु,कामधेनू,kamdhenu sariya,कामधेनु सरिया,kamdhenu tmt,kamdhenu steel,kamdhenu loha", 70.0),
                 Item("Sariya (TMT)", "kg", 800.0, 62.0, "sariya,सरिया,iron,tmt,loha,लोहा", 68.0),
                 Item("Brick (ईंट)", "pcs", 5000.0, 7.5, "brick,bricks,eent,ईंट,ईट,इंट", 9.0)
-            ).forEach { if (dao.item(it.name) == null) dao.put(it) }
+            ).forEach { item ->
+                val existing = dao.item(item.name)
+                if (existing == null) {
+                    dao.put(item)
+                } else if (item.name.contains("Birla") || item.name.contains("ACC") || item.name.contains("UltraTech")) {
+                    dao.put(item.copy(stock = existing.stock, avgCost = existing.avgCost, sellRate = existing.sellRate))
+                }
+            }
         }
     }
 

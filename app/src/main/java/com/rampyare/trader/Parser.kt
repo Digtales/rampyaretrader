@@ -25,14 +25,61 @@ object Parser {
     fun norm(x: String): String {
         var s = x.lowercase().map { if (it in '०'..'९') '0' + (it - '०') else it }.joinToString("")
         s = s.replace(Regex("(?<=\\d),(?=\\d)"), "")
+
+        // Normalize Hindi/English spelling variants for Cement brands & materials
+        s = s.replace("cament", "cement")
+            .replace("seement", "cement")
+            .replace("सेमेंट", "cement")
+            .replace("केमेंट", "cement")
+            .replace("सीमेंट", "cement")
+
+        // ACC Hindi variations
+        s = s.replace("एसीसी", "acc")
+            .replace("ऐसीसी", "acc")
+            .replace("एसिसी", "acc")
+            .replace("ए.सी.सी.", "acc")
+            .replace("ऐ.सी.सी.", "acc")
+            .replace("ए.सी.सी", "acc")
+            .replace("ऐ.सी.सी", "acc")
+            .replace("ए सी सी", "acc")
+            .replace("ऐ सी सी", "acc")
+            .replace("a.c.c.", "acc")
+            .replace("a.c.c", "acc")
+            .replace("a c c", "acc")
+
+        // Birla Gold and Plus variations
+        s = s.replace("बिरला", "birla")
+            .replace("गोल्ड", "gold")
+            .replace("प्लस", "plus")
+            .replace("एमपी", "mp")
+
+        // Kamdhenu & Sariya
+        s = s.replace("कामधेनु", "kamdhenu")
+            .replace("कामधेनू", "kamdhenu")
+            .replace("सरिया", "sariya")
+            .replace("लोहा", "sariya")
+            .replace("टीएमटी", "tmt")
+
+        // Other brands & materials
+        s = s.replace("अल्ट्राटेक", "ultratech")
+            .replace("अंबुजा", "ambuja")
+            .replace("बांगुर", "bangur")
+            .replace("चूरी", "churi")
+            .replace("चुरी", "churi")
+            .replace("चूड़ी", "churi")
+            .replace("छुरी", "churi")
+            .replace("डस्ट", "dust")
+
         // Handle "hazar", "lakh"
         s = Regex("(\\d+(?:\\.\\d+)?)\\s*(?:hazar|hazaar|hajar|हजार|हज़ार|thousand|k\\b)")
             .replace(s) { (it.groupValues[1].toDouble() * 1000).toLong().toString() }
         s = Regex("(\\d+(?:\\.\\d+)?)\\s*(?:lakh|lac|लाख)")
             .replace(s) { (it.groupValues[1].toDouble() * 100000).toLong().toString() }
-        // Separate attached unit numbers e.g. "2kg" -> "2 kg", "200bag" -> "200 bag"
-        s = s.replace(Regex("(\\d+)(kg|kilo|bag|bags|bori|tractor|trolley|pcs|ton)"), "$1 $2")
-        s = s.replace(Regex("(\\d+)(rs|rupaye|₹)"), "$1 $2")
+
+        // Separate attached unit numbers in English and Hindi e.g. "2kg" -> "2 kg", "200bag" -> "200 bag", "2किलो" -> "2 किलो"
+        s = s.replace(Regex("(\\d+)(kg|kilo|bag|bags|bori|tractor|trolley|pcs|ton|quintal|टन|बोरी|बैग|किलो|केजी|क्विंटल)"), "$1 $2")
+        s = s.replace(Regex("(\\d+)(rs|rupaye|रुपये|रुपया|रू|₹)"), "$1 $2")
+
         return s
     }
 
@@ -48,8 +95,8 @@ object Parser {
 
     /**
      * Best matching items for one spoken chunk with Brand-Priority scoring.
-     * Specific brand names (e.g. ACC, Kamdhenu, Birla, UltraTech, Ambuja) get much higher score
-     * than generic words like "cement".
+     * Specific brand names (e.g. ACC, Birla Gold, Birla Plus, UltraTech, Ambuja, Kamdhenu)
+     * get much higher score than generic words like "cement" or "sariya".
      */
     fun cands(tok: List<String>, items: List<Item>): List<Item> {
         val scored = items.map { i ->
@@ -59,18 +106,18 @@ object Parser {
             var score = 0
             // Exact full name match
             if (k.isNotEmpty() && k.all { it in tok }) {
-                score += k.size * 5
+                score += k.size * 6
             }
             // Check alias matches
             for (alias in al) {
                 val aliasTokens = alias.split(" ")
                 if (aliasTokens.all { it in tok }) {
-                    score += 8 // Specific brand alias match gets high score
+                    score += 10 // Specific brand alias match gets highest priority
                 } else if (aliasTokens.any { it in tok }) {
                     score += 3
                 }
             }
-            // Partial name match (e.g. only "cement")
+            // Partial name match
             val matches = k.count { it in tok }
             score += matches * 2
 
@@ -99,13 +146,12 @@ object Parser {
         var detectedAmt: Double? = null
         var detectedUnit: String? = null
 
-        // 1. First look for number immediately followed or preceded by a unit (e.g., "1 tractor", "2 kg", "200 bag")
+        // 1. Look for number immediately followed or preceded by a unit (e.g., "1 tractor", "2 kg", "200 bag")
         for (m in numMatches) {
             val numVal = m.value.toDouble()
             val startIdx = m.range.first
             val endIdx = m.range.last + 1
 
-            // Look for words right after the number
             val afterSubstring = s.substring(endIdx).trimStart().split(Regex("\\s+")).firstOrNull() ?: ""
             val beforeSubstring = s.substring(0, startIdx).trimEnd().split(Regex("\\s+")).lastOrNull() ?: ""
 
@@ -132,7 +178,6 @@ object Parser {
             if (allNums.size == 1) {
                 detectedQty = allNums[0]
             } else if (allNums.size >= 2) {
-                // If one number is large (e.g. >= 1000) and one is small (e.g. 1 to 50 for tractor/trolley):
                 val first = allNums.first()
                 val last = allNums.last()
                 if (detectedAmt != null) {
@@ -146,15 +191,18 @@ object Parser {
                 }
             }
         } else if (detectedAmt == null && allNums.size >= 2) {
-            // Pick the other number as amount
             detectedAmt = allNums.firstOrNull { it != detectedQty } ?: allNums.last()
         }
 
         val finalQty = detectedQty ?: 1.0
-        val finalUnit = detectedUnit ?: tok.firstNotNullOfOrNull { units[it] } ?: matchedItem?.unit ?: "pcs"
+        val rawUnit = detectedUnit ?: tok.firstNotNullOfOrNull { units[it] } ?: matchedItem?.unit ?: "pcs"
+        val finalUnit = if (matchedItem?.name?.contains("Sariya", true) == true && (rawUnit == "bag" || rawUnit == "bori")) {
+            "kg"
+        } else {
+            rawUnit
+        }
         val itemName = matchedItem?.name ?: cleanName(s).ifBlank { "Cement" }
 
-        // If rate word exists (e.g. "rate 360"), calculate total
         val isRateSpoken = tok.any { it in rateWords }
         var finalAmt = detectedAmt ?: 0.0
         if (isRateSpoken && detectedAmt != null) {
@@ -166,7 +214,7 @@ object Parser {
 
     /**
      * Parses chunk into Line items.
-     * Auto-resolves new cement brands if user says "cement <brand> <qty>".
+     * Auto-resolves cement brands and kamdhenu sariya.
      */
     fun parse(t: String, items: List<Item>): Pair<List<Line>, List<String>> {
         val ok = mutableListOf<Line>()
@@ -179,7 +227,6 @@ object Parser {
             if (c.size == 1) {
                 buildSmart(ch, c[0])?.let { ok.add(it) }
             } else if (c.size > 1) {
-                // Disambiguate if brand specific:
                 // Check if any candidate has a specific alias matching in tok
                 val specific = c.filter { item ->
                     item.aliases.split(",").any { norm(it.trim()) in tok }
@@ -190,8 +237,13 @@ object Parser {
                     ask.addAll(c.map { it.name })
                 }
             } else {
-                // If not in database but mentions "cement" + brand name (e.g. "cement kamdhenu 200 bags" or "cement birla plus 200 bag")
-                if (tok.any { it in listOf("cement", "सीमेंट", "seement") } && nums(ch).isNotEmpty()) {
+                // If not in database:
+                // Check Kamdhenu -> ALWAYS SARIYA
+                if (tok.any { it.contains("kamdhenu") } && nums(ch).isNotEmpty()) {
+                    val sariya = items.firstOrNull { it.name.contains("Kamdhenu", true) }
+                        ?: Item("Kamdhenu Sariya (TMT)", "kg", 0.0, 0.0, "", 70.0)
+                    buildSmart(ch, sariya)?.let { ok.add(it) }
+                } else if (tok.any { it in listOf("cement", "सीमेंट", "seement", "cament") } && nums(ch).isNotEmpty()) {
                     val brandName = cleanName(ch).ifBlank { "Cement" }
                     val fullName = if (brandName.startsWith("Cement", true)) brandName else "Cement $brandName"
                     buildSmart(ch, Item(fullName, "bag", 0.0, 0.0, "", 370.0))?.let { ok.add(it) }
