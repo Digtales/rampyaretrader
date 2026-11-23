@@ -26,7 +26,7 @@ class VM(app: Application) : AndroidViewModel(app) {
     var matches by mutableStateOf(listOf<Customer>())
     val lines = mutableStateListOf<Line>()
     var paid by mutableStateOf(0.0)
-    var msg by mutableStateOf("🎤 BOLO dabao: \"1 tractor balu 6 hazar\" ya \"add new product\"")
+    var msg by mutableStateOf("🎤 BOLO dabao: \"1 tractor balu 6 hazar\" ya \"cement acc 200 bag\"")
     var tab by mutableStateOf(0)
     var exportReq by mutableStateOf<String?>(null)
     var ledger by mutableStateOf(listOf<Txn>())
@@ -37,7 +37,13 @@ class VM(app: Application) : AndroidViewModel(app) {
 
     // Dialog controllers
     var showAddProductDialog by mutableStateOf(false)
+    var showEditProductDialog by mutableStateOf(false)
+    var editingProduct by mutableStateOf<Item?>(null)
+
     var showAddCustDialog by mutableStateOf(false)
+    var showEditCustDialog by mutableStateOf(false)
+    var editingCustomer by mutableStateOf<Customer?>(null)
+
     var showAddExpenseDialog by mutableStateOf(false)
     var showAddStockDialog by mutableStateOf(false)
     var selectedStockItem by mutableStateOf<Item?>(null)
@@ -49,14 +55,19 @@ class VM(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             listOf(
-                Item("Cement UltraTech", "bag", 100.0, 340.0, "ultratech,अल्ट्राटेक,cement,सीमेंट,seement", 380.0),
+                Item("Cement UltraTech", "bag", 100.0, 340.0, "ultratech,अल्ट्राटेक,ultra tech,cement,सीमेंट,seement", 380.0),
                 Item("Cement Ambuja", "bag", 80.0, 330.0, "ambuja,अंबुजा", 370.0),
-                Item("Cement ACC", "bag", 60.0, 335.0, "acc,एसीसी", 375.0),
+                Item("Cement ACC", "bag", 60.0, 335.0, "acc,एसीसी,a c c", 375.0),
+                Item("Cement Birla Plus", "bag", 50.0, 330.0, "birla,बिरला,birla plus,mp birla,बिरला प्लस", 365.0),
+                Item("Cement Kamdhenu", "bag", 50.0, 325.0, "kamdhenu,कामधेनु,kamdhenu cement", 360.0),
+                Item("Cement Bangur", "bag", 40.0, 320.0, "bangur,बांगुर", 355.0),
+                Item("Cement JK Super", "bag", 40.0, 330.0, "jk,jk super,जेके,जे के,jk cement", 370.0),
+                Item("Cement Shree", "bag", 40.0, 325.0, "shree,श्री,shree cement,jung rodhak", 365.0),
                 Item("Balu (Sand)", "tractor", 8.0, 5000.0, "balu,sand,बालू,रेत,baloo", 6000.0),
-                Item("Gitti 20mm", "tractor", 6.0, 6500.0, "gitti,गिट्टी,stone,रोड़ी", 7500.0),
-                Item("Gitti 10mm", "tractor", 4.0, 6000.0, "churi,चूरी,10mm,dust", 7000.0),
+                Item("Gitti 20mm", "tractor", 6.0, 6500.0, "gitti,गिट्टी,stone,रोड़ी,gitti 20mm", 7500.0),
+                Item("Gitti 10mm", "tractor", 4.0, 6000.0, "gitti 10mm,10mm,गिट्टी 10mm,बारीक गिट्टी", 7000.0),
+                Item("Churi (Stone Dust)", "kg", 5000.0, 3.0, "churi,चूरी,चुरी,चूड़ी,choori,stone dust,dust,डस्ट", 4.0),
                 Item("Sariya (TMT)", "kg", 800.0, 62.0, "sariya,सरिया,iron,tmt,loha,लोहा", 68.0),
-                Item("Char / Stone Dust", "kg", 2000.0, 2.5, "char,chaar,चार,stone dust", 3.5),
                 Item("Brick (ईंट)", "pcs", 5000.0, 7.5, "brick,bricks,eent,ईंट,ईट,इंट", 9.0)
             ).forEach { if (dao.item(it.name) == null) dao.put(it) }
         }
@@ -83,7 +94,7 @@ class VM(app: Application) : AndroidViewModel(app) {
 
     fun newCust(name: String, mobile: String, initialDue: Double = 0.0) = viewModelScope.launch {
         val nm = name.trim().split(Regex("\\s+")).joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
-        val mob = mobile.filter(Char::isDigit).takeLast(10)
+        val mob = mobile.filter(Char::isDigit).let { if (it.length > 10) it.takeLast(10) else it }
         if (nm.isBlank() || mob.length < 10) {
             msg = "⚠️ Naam aur 10-digit mobile number zaroori hai"
             return@launch
@@ -99,20 +110,46 @@ class VM(app: Application) : AndroidViewModel(app) {
             val c = dao.cust(id)!!
             pick(c)
             showAddCustDialog = false
-            msg = "✅ Naya customer: $nm (${mob}) jud gaya!"
+            msg = "✅ Naya customer: $nm ($mob) jud gaya!"
         } catch (e: Exception) {
             msg = "Grahak jodane mein error: ${e.message}"
         }
     }
 
+    fun updateCust(id: Long, name: String, mobile: String, due: Double) = viewModelScope.launch {
+        val nm = name.trim().split(Regex("\\s+")).joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+        val mob = mobile.filter(Char::isDigit).let { if (it.length > 10) it.takeLast(10) else it }
+        if (nm.isBlank() || mob.length < 10) {
+            msg = "⚠️ Sahi naam aur 10-digit mobile number bharein"
+            return@launch
+        }
+        val updated = Customer(id = id, name = nm, mobile = mob, due = due)
+        dao.upd(updated)
+        if (cust?.id == id) cust = updated
+        showEditCustDialog = false
+        editingCustomer = null
+        msg = "✅ Grahak '$nm' ($mob) safaltapoorvak update ho gaya!"
+    }
+
     fun deleteCust(c: Customer) = viewModelScope.launch {
         dao.delCust(c.id)
         if (cust?.id == c.id) cust = null
+        showEditCustDialog = false
+        editingCustomer = null
         msg = "Customer ${c.name} hata diya gaya"
     }
 
     fun buy(l: Line) = viewModelScope.launch {
-        val it = dao.item(l.item) ?: return@launch
+        val it = dao.item(l.item) ?: run {
+            // If item doesn't exist yet, create it!
+            val newItem = Item(l.item, l.unit, l.qty, if (l.qty > 0) l.amount / l.qty else 0.0, "", if (l.qty > 0) (l.amount / l.qty) * 1.1 else 0.0)
+            dao.put(newItem)
+            dao.addPurchase(Purchase(0, now, l.item, l.qty, l.amount))
+            tab = 1
+            showAddStockDialog = false
+            msg = "✅ Naya maal add: ${l.item} ${fmt(l.qty)} ${l.unit} = ${m(l.amount)}"
+            return@launch
+        }
         val q = it.stock + l.qty
         val avg = if (q > 0) (it.stock * it.avgCost + l.amount) / q else 0.0
         dao.put(it.copy(stock = q, avgCost = avg))
@@ -145,11 +182,25 @@ class VM(app: Application) : AndroidViewModel(app) {
             msg = "✅ Naya product '$n' stock mein add ho gaya!"
         }
         showAddProductDialog = false
-        tab = 1 // Switch to Stock Tab so user sees the new product!
+        tab = 1
+    }
+
+    fun updateItem(oldName: String, newName: String, unit: String, stock: Double, avgCost: Double, sellRate: Double) = viewModelScope.launch {
+        val n = newName.trim().split(Regex("\\s+")).joinToString(" ") { w -> w.replaceFirstChar(Char::uppercase) }
+        if (n.isBlank()) return@launch
+        if (oldName != n) {
+            dao.delItem(oldName)
+        }
+        dao.put(Item(n, unit, stock, avgCost, sellRate = sellRate))
+        showEditProductDialog = false
+        editingProduct = null
+        msg = "✅ Product '$n' update ho gaya!"
     }
 
     fun deleteItem(i: Item) = viewModelScope.launch {
         dao.delItem(i.name)
+        showEditProductDialog = false
+        editingProduct = null
         msg = "Product '${i.name}' hata diya gaya"
     }
 
@@ -317,7 +368,6 @@ class VM(app: Application) : AndroidViewModel(app) {
                     val tot = if (n.size >= 2) (if (tok.any { it in Parser.rateWords }) n.last() * q else n.last()) else 0.0
                     addItem(name, unit, q, tot)
                 } else {
-                    // User said just "add new product" or "add product cement" without full numbers -> Open Dialog!
                     initialDialogName = name
                     showAddProductDialog = true
                     tab = 1
@@ -408,6 +458,12 @@ class VM(app: Application) : AndroidViewModel(app) {
             else -> {
                 val (ls0, ask) = Parser.parse(t, items.value)
                 val ls = ls0.map { l ->
+                    // Auto-ensure item is created in DB if brand was newly spoken (e.g. Cement Kamdhenu)
+                    if (dao.item(l.item) == null) {
+                        viewModelScope.launch {
+                            dao.put(Item(l.item, l.unit, 0.0, 0.0, "", if (l.qty > 0 && l.amount > 0) l.amount / l.qty else 370.0))
+                        }
+                    }
                     if (l.amount == 0.0) {
                         items.value.firstOrNull { it.name == l.item }?.let { i ->
                             if (i.sellRate > 0) l.copy(amount = l.qty * i.sellRate) else l
@@ -421,7 +477,7 @@ class VM(app: Application) : AndroidViewModel(app) {
                 } else if (ask.isNotEmpty()) {
                     askMsg(ask)
                 } else {
-                    msg = "Samajh nahi aaya: \"$raw\". BOLO: '1 tractor balu', 'add new product', ya 'customer ramesh'"
+                    msg = "Samajh nahi aaya: \"$raw\". BOLO: '1 tractor balu 6000', 'cement acc 200 bag', ya 'churi 2kg'"
                 }
             }
         }

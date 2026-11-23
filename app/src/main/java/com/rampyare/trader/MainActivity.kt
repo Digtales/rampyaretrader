@@ -177,7 +177,7 @@ fun App(vm: VM = viewModel()) {
                         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                         putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
                         putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("en-IN", "en-US"))
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, "बोलिए: जैसे '1 tractor balu', 'add new product'...")
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "बोलिए: जैसे '1 tractor balu 6000', 'cement acc 200 bag'...")
                     }
                     mic.launch(intent)
                 },
@@ -281,14 +281,20 @@ fun App(vm: VM = viewModel()) {
                 }
                 item {
                     SuggestionChip(
-                        onClick = { vm.handle("1 tractor balu 6 hazar") },
-                        label = { Text("1 tractor balu", fontSize = 12.sp) }
+                        onClick = { vm.handle("1 tractor balu 6000") },
+                        label = { Text("1 tractor balu 6000", fontSize = 12.sp) }
                     )
                 }
                 item {
                     SuggestionChip(
-                        onClick = { vm.handle("cement 50 bori") },
-                        label = { Text("cement 50 bori", fontSize = 12.sp) }
+                        onClick = { vm.handle("cement acc 200 bag") },
+                        label = { Text("cement acc 200 bag", fontSize = 12.sp) }
+                    )
+                }
+                item {
+                    SuggestionChip(
+                        onClick = { vm.handle("churi 2kg") },
+                        label = { Text("churi 2kg", fontSize = 12.sp) }
                     )
                 }
                 item {
@@ -316,9 +322,17 @@ fun App(vm: VM = viewModel()) {
     if (vm.showAddProductDialog) {
         AddProductDialog(vm)
     }
+    if (vm.showEditProductDialog && vm.editingProduct != null) {
+        EditProductDialog(vm, vm.editingProduct!!)
+    }
+
     if (vm.showAddCustDialog) {
         AddCustomerDialog(vm)
     }
+    if (vm.showEditCustDialog && vm.editingCustomer != null) {
+        EditCustomerDialog(vm, vm.editingCustomer!!)
+    }
+
     if (vm.showAddExpenseDialog) {
         AddExpenseDialog(vm)
     }
@@ -366,13 +380,26 @@ fun BillTab(vm: VM) {
                             )
                         }
                         Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                vm.cust?.name ?: "कोई ग्राहक नहीं चुना",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = Color(0xFF0F172A)
-                            )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    vm.cust?.name ?: "कोई ग्राहक नहीं चुना",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF0F172A)
+                                )
+                                if (vm.cust != null) {
+                                    IconButton(
+                                        onClick = {
+                                            vm.editingCustomer = vm.cust
+                                            vm.showEditCustDialog = true
+                                        },
+                                        modifier = Modifier.size(24.dp).padding(start = 4.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit Mobile", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
                             if (vm.cust != null) {
                                 Text("📱 ${vm.cust!!.mobile}", fontSize = 12.sp, color = Color(0xFF64748B))
                                 Text(
@@ -382,7 +409,7 @@ fun BillTab(vm: VM) {
                                     color = if (vm.cust!!.due > 0) Color(0xFFDC2626) else Color(0xFF16A34A)
                                 )
                             } else {
-                                Text("नीचे ग्राहक चुनें या बोलें: 'customer ramesh'", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                                Text("ग्राहक चुनें या बोलें: 'customer ramesh'", fontSize = 12.sp, color = Color(0xFF94A3B8))
                             }
                         }
                     }
@@ -428,7 +455,7 @@ fun BillTab(vm: VM) {
                         Spacer(Modifier.height(8.dp))
                         Text("बिल अभी खाली है", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text(
-                            "माइक दबाकर बोलें: '1 tractor balu 6 hazar' या 'cement 50 bori'",
+                            "माइक दबाकर बोलें: '1 tractor balu 6000', 'cement acc 200 bag', या 'churi 2kg'",
                             fontSize = 12.sp,
                             color = Color(0xFF64748B),
                             textAlign = TextAlign.Center
@@ -688,7 +715,8 @@ fun StockTab(vm: VM) {
                     Spacer(Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedButton(
                             onClick = {
@@ -700,7 +728,17 @@ fun StockTab(vm: VM) {
                         ) {
                             Text("+ स्टॉक बढ़ाएं", fontSize = 12.sp)
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(6.dp))
+                        IconButton(
+                            onClick = {
+                                vm.editingProduct = item
+                                vm.showEditProductDialog = true
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        Spacer(Modifier.width(4.dp))
                         IconButton(
                             onClick = { vm.deleteItem(item) },
                             modifier = Modifier.size(32.dp)
@@ -805,7 +843,18 @@ fun CustTab(vm: VM) {
                         }
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text(c.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(c.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                IconButton(
+                                    onClick = {
+                                        vm.editingCustomer = c
+                                        vm.showEditCustDialog = true
+                                    },
+                                    modifier = Modifier.size(24.dp).padding(start = 4.dp)
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                }
+                            }
                             Text("📱 ${c.mobile}", fontSize = 12.sp, color = Color(0xFF64748B))
                         }
                     }
@@ -823,7 +872,7 @@ fun CustTab(vm: VM) {
                             color = if (c.due > 0) Color(0xFFDC2626) else Color(0xFF16A34A)
                         )
                         Spacer(Modifier.height(4.dp))
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             FilledTonalButton(
                                 onClick = {
                                     vm.pick(c)
@@ -927,9 +976,20 @@ fun HisabTab(vm: VM) {
                     border = CardDefaults.outlinedCardBorder()
                 ) {
                     Column(Modifier.padding(14.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
-                                Text("${vm.cust!!.name} का खाता", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("${vm.cust!!.name} का खाता", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    IconButton(
+                                        onClick = {
+                                            vm.editingCustomer = vm.cust
+                                            vm.showEditCustDialog = true
+                                        },
+                                        modifier = Modifier.size(24.dp).padding(start = 4.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    }
+                                }
                                 Text("मोबाइल: ${vm.cust!!.mobile} | बाकी: ${m(vm.cust!!.due)}", fontSize = 12.sp, color = Color(0xFF64748B))
                             }
                             Button(
@@ -1184,7 +1244,6 @@ fun AddProductDialog(vm: VM) {
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                // Unit Selection Chips
                 Text("यूनिट चुनें:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val units = listOf("bag", "tractor", "kg", "pcs", "ton", "trolley")
@@ -1241,6 +1300,83 @@ fun AddProductDialog(vm: VM) {
     )
 }
 
+/** DIALOG: EDIT PRODUCT */
+@Composable
+fun EditProductDialog(vm: VM, item: Item) {
+    var name by remember { mutableStateOf(item.name) }
+    var unit by remember { mutableStateOf(item.unit) }
+    var stock by remember { mutableStateOf(fmt(item.stock)) }
+    var avgCost by remember { mutableStateOf(fmt(item.avgCost)) }
+    var sellRate by remember { mutableStateOf(fmt(item.sellRate)) }
+
+    AlertDialog(
+        onDismissRequest = { vm.showEditProductDialog = false },
+        title = { Text("प्रोडक्ट एडिट करें", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("प्रोडक्ट का नाम") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Text("यूनिट:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val units = listOf("bag", "tractor", "kg", "pcs", "ton", "trolley")
+                    items(units) { u ->
+                        FilterChip(
+                            selected = unit == u,
+                            onClick = { unit = u },
+                            label = { Text(u) }
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = stock,
+                    onValueChange = { stock = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("स्टॉक क्वांटिटी ($unit)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = avgCost,
+                    onValueChange = { avgCost = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("खरीद औसत रेट प्रति $unit ₹") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = sellRate,
+                    onValueChange = { sellRate = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("बिक्री रेट प्रति $unit ₹") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val st = stock.toDoubleOrNull() ?: item.stock
+                    val ac = avgCost.toDoubleOrNull() ?: item.avgCost
+                    val sr = sellRate.toDoubleOrNull() ?: item.sellRate
+                    if (name.isNotBlank()) {
+                        vm.updateItem(item.name, name, unit, st, ac, sr)
+                    }
+                }
+            ) {
+                Text("अपडेट करें")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { vm.showEditProductDialog = false }) {
+                Text("रद्द करें")
+            }
+        }
+    )
+}
+
 /** DIALOG: ADD CUSTOMER */
 @Composable
 fun AddCustomerDialog(vm: VM) {
@@ -1280,8 +1416,9 @@ fun AddCustomerDialog(vm: VM) {
             Button(
                 onClick = {
                     val due = initialDue.toDoubleOrNull() ?: 0.0
-                    if (name.isNotBlank() && mobile.length >= 10) {
-                        vm.newCust(name, mobile, due)
+                    val cleanMob = mobile.filter(Char::isDigit).let { if (it.length > 10) it.takeLast(10) else it }
+                    if (name.isNotBlank() && cleanMob.length >= 10) {
+                        vm.newCust(name, cleanMob, due)
                     }
                 }
             ) {
@@ -1291,6 +1428,72 @@ fun AddCustomerDialog(vm: VM) {
         dismissButton = {
             TextButton(onClick = { vm.showAddCustDialog = false }) {
                 Text("रद्द करें")
+            }
+        }
+    )
+}
+
+/** DIALOG: EDIT CUSTOMER (Wrong mobile/name fix) */
+@Composable
+fun EditCustomerDialog(vm: VM, customer: Customer) {
+    var name by remember { mutableStateOf(customer.name) }
+    var mobile by remember { mutableStateOf(customer.mobile) }
+    var due by remember { mutableStateOf(fmt(customer.due)) }
+
+    AlertDialog(
+        onDismissRequest = { vm.showEditCustDialog = false },
+        title = { Text("ग्राहक का विवरण बदलें (Edit)", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("ग्राहक का नाम") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = mobile,
+                    onValueChange = { mobile = it.filter(Char::isDigit).take(10) },
+                    label = { Text("सही 10-Digit मोबाइल नंबर") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = due,
+                    onValueChange = { due = it.filter { c -> c.isDigit() || c == '.' || c == '-' } },
+                    label = { Text("बाकी उधार रकम ₹") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        val d = due.toDoubleOrNull() ?: customer.due
+                        val cleanMob = mobile.filter(Char::isDigit).let { if (it.length > 10) it.takeLast(10) else it }
+                        if (name.isNotBlank() && cleanMob.length >= 10) {
+                            vm.updateCust(customer.id, name, cleanMob, d)
+                        }
+                    }
+                ) {
+                    Text("सेव करें (Save)")
+                }
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(
+                    onClick = { vm.deleteCust(customer) },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626))
+                ) {
+                    Text("डिलीट करें")
+                }
+                TextButton(onClick = { vm.showEditCustDialog = false }) {
+                    Text("रद्द करें")
+                }
             }
         }
     )
