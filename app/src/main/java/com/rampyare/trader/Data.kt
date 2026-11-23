@@ -18,10 +18,12 @@ data class Customer(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name:
     @Query("SELECT * FROM Item") fun items(): Flow<List<Item>>
     @Query("SELECT * FROM Item WHERE name=:n") suspend fun item(n: String): Item?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun put(i: Item)
+    @Query("DELETE FROM Item WHERE name=:n") suspend fun delItem(n: String)
     @Query("SELECT * FROM Customer ORDER BY name") fun customers(): Flow<List<Customer>>
     @Query("SELECT * FROM Customer WHERE id=:id") suspend fun cust(id: Long): Customer?
     @Insert suspend fun add(c: Customer): Long
     @Update suspend fun upd(c: Customer)
+    @Query("DELETE FROM Customer WHERE id=:id") suspend fun delCust(id: Long)
     @Insert suspend fun addBill(b: Bill): Long
     @Insert suspend fun addSaleLine(l: SaleLine)
     @Insert suspend fun addExpense(e: Expense)
