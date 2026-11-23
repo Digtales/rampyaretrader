@@ -6,7 +6,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity data class Item(@PrimaryKey val name: String, val unit: String, val stock: Double = 0.0, val avgCost: Double = 0.0, val aliases: String = "", val sellRate: Double = 0.0)
-@Entity(indices = [Index(value = ["name", "mobile"], unique = true)])
+@Entity
 data class Customer(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, val mobile: String, val due: Double = 0.0)
 @Entity data class Bill(@PrimaryKey(autoGenerate = true) val id: Long = 0, val customerId: Long, val date: Long, val total: Double, val paid: Double, val cost: Double, val lines: String)
 @Entity data class Txn(@PrimaryKey(autoGenerate = true) val id: Long = 0, val customerId: Long, val date: Long, val type: String, val amount: Double)

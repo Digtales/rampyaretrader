@@ -57,7 +57,12 @@ class VM(app: Application) : AndroidViewModel(app) {
 
     fun newCust(name: String, mobile: String) = viewModelScope.launch {
         if (name.isBlank() || mobile.length < 10) { msg = "Naam aur 10 digit mobile chahiye"; return@launch }
-        try { val id = dao.add(Customer(name = name.trim(), mobile = mobile)); pick(dao.cust(id)!!); msg = "Naya customer: $name" }
+        val nm = name.trim()
+        if (customers.value.any { it.name.equals(nm, true) && it.mobile == mobile }) {
+            msg = "Ye naam + mobile pehle se hai"
+            return@launch
+        }
+        try { val id = dao.add(Customer(name = nm, mobile = mobile)); pick(dao.cust(id)!!); msg = "Naya customer: $nm" }
         catch (e: Exception) { msg = "Ye naam + mobile pehle se hai" }
     }
 
