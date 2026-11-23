@@ -1,4 +1,4 @@
-plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("com.google.devtools.ksp") }
+plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); kotlin("kapt") }
 android {
     namespace = "com.rampyare.trader"; compileSdk = 34
     defaultConfig { applicationId = "com.rampyare.trader"; minSdk = 24; targetSdk = 34; versionCode = 1; versionName = "1.0" }
@@ -15,5 +15,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
 }
