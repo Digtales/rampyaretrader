@@ -14,7 +14,7 @@ data class Customer(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name:
 @Entity data class Expense(@PrimaryKey(autoGenerate = true) val id: Long = 0, val date: Long, val note: String, val amount: Double)
 @Entity data class Purchase(@PrimaryKey(autoGenerate = true) val id: Long = 0, val date: Long, val item: String, val qty: Double, val total: Double)
 
-@Dao interface Dao {
+@Dao interface AppDao {
     @Query("SELECT * FROM Item") fun items(): Flow<List<Item>>
     @Query("SELECT * FROM Item WHERE name=:n") suspend fun item(n: String): Item?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun put(i: Item)
@@ -37,7 +37,7 @@ data class Customer(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name:
 
 @Database(entities = [Item::class, Customer::class, Bill::class, Txn::class, Purchase::class, SaleLine::class, Expense::class], version = 3, exportSchema = false)
 abstract class DB : RoomDatabase() {
-    abstract fun dao(): Dao
+    abstract fun dao(): AppDao
     companion object {
         @Volatile private var I: DB? = null
         fun get(c: Context): DB = I ?: synchronized(this) {
