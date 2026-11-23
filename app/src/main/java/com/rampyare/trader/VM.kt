@@ -459,7 +459,7 @@ class VM(app: Application) : AndroidViewModel(app) {
                 val (ls0, ask) = Parser.parse(t, items.value)
                 val ls = ls0.map { l ->
                     // Auto-ensure item is created in DB if brand was newly spoken (e.g. Cement Kamdhenu)
-                    if (dao.item(l.item) == null) {
+                    if (items.value.none { it.name.equals(l.item, true) }) {
                         viewModelScope.launch {
                             dao.put(Item(l.item, l.unit, 0.0, 0.0, "", if (l.qty > 0 && l.amount > 0) l.amount / l.qty else 370.0))
                         }
